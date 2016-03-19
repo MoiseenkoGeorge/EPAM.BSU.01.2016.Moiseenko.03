@@ -8,39 +8,57 @@ namespace Polynom
 {
     public class Polynom
     {
+        private double[] coefficients;
+        public int Power { get; }
         public Polynom(params double[] coefficient)
         {
-            coefficients = coefficient;
+            coefficients = new double[coefficient.Length];
+            Power = coefficient.Length - 1;
+            for (int i = 0; i < Power + 1; i++)
+                coefficients[i] = coefficient[i];
+        }
+
+        public double this[int index]
+        {
+            get
+            {
+                if(index > Power || index < 0)
+                    throw new ArgumentOutOfRangeException(nameof(index),"Out of Range");
+                return coefficients[index];
+            }
         }
 
         public static Polynom operator +(Polynom lhs, Polynom rhs)
         {
             if (lhs == null || rhs == null)
                 throw new ArgumentNullException("Require non-null argument");
-            return lhs.Add(rhs);
+            return Add(lhs, rhs);
         }
-        public Polynom Add(Polynom rhs)
+        public static Polynom Add(Polynom lhs,Polynom rhs)
         {
-            if (rhs == null)
+            if (rhs == null || lhs == null)
                 throw new ArgumentNullException("Require non-null argument");
-            if (coefficients.Length > rhs.coefficients.Length)
-                return op_Add(this, rhs);
-            else
-                return op_Add(rhs, this);
+            if (rhs.Power > lhs.Power)
+            {
+                Polynom temp = rhs;
+                rhs = lhs;
+                lhs = temp;
+            }
+            return new Polynom(lhs.coefficients.Select((x, index) => x + (index > rhs.coefficients.Length - 1 ? 0 : rhs.coefficients[index])).ToArray());
         }
 
         public static Polynom operator *(Polynom lhs, Polynom rhs)
         {
             if (lhs == null || rhs == null)
                 throw new ArgumentNullException("Require non-null argument");
-            return lhs.Multiply(rhs);
+            return Multiply(lhs, rhs);
         }
-        public Polynom Multiply(Polynom rhs)
+        public static Polynom Multiply(Polynom lhs,Polynom rhs)
         {
-            double[] parametres = Allocate(coefficients.Length + rhs.coefficients.Length - 1);
-            for (int i = 0; i < coefficients.Length; i++)
-                for (int j = 0; j < rhs.coefficients.Length; j++)
-                    parametres[i + j] += coefficients[i] * rhs.coefficients[j];
+            double[] parametres = Allocate(lhs.Power + rhs.Power + 1);
+            for (int i = 0; i <= lhs.Power; i++)
+                for (int j = 0; j <= rhs.Power; j++)
+                    parametres[i + j] += lhs[i] * rhs[j];
             return new Polynom(parametres);
         }
 
@@ -48,16 +66,21 @@ namespace Polynom
         {
             if (lhs == null || rhs == null)
                 throw new ArgumentNullException("Require non-null argument");
-            return lhs.Substruct(rhs);
+            return Substruct(lhs, rhs);
         }
-        public Polynom Substruct(Polynom rhs)
+        public static Polynom Substruct(Polynom lhs, Polynom rhs)
         {
-            if (rhs == null)
+            if (lhs == null || rhs == null)
                 throw new ArgumentNullException("Require non-null argument");
-            if (coefficients.Length > rhs.coefficients.Length)
-                return op_Substruction(this, rhs);
-            else
-                return op_Add(new Polynom(PositiveToNegative(rhs.coefficients)), this);
+            if (rhs.Power > lhs.Power)
+            {
+                Polynom temp = PositiveToNegative(rhs);
+                rhs = lhs;
+                lhs = temp;
+                return Add(rhs, lhs);
+            }
+
+            return new Polynom(lhs.coefficients.Select((x, index) => x - (index > rhs.coefficients.Length - 1 ? 0 : rhs.coefficients[index])).ToArray());
         }
 
         public static bool operator ==(Polynom lhs, Polynom rhs)
@@ -106,24 +129,14 @@ namespace Polynom
                 result += (coefficients[i] > 0 ? "+" : "") + (coefficients[i] == 0 ? "" : (coefficients[i] + "*x^" + i));
             return result;
         }
-
-        private double[] coefficients;
-        private Polynom op_Add(Polynom lhs, Polynom rhs)
+        private static Polynom PositiveToNegative(Polynom polynom)
         {
-            return new Polynom(lhs.coefficients.Select((x, index) => x + (index > rhs.coefficients.Length - 1 ? 0 : rhs.coefficients[index])).ToArray());
-        }
-        private Polynom op_Substruction(Polynom lhs, Polynom rhs)
-        {
-            return new Polynom(lhs.coefficients.Select((x, index) => x - (index > rhs.coefficients.Length - 1 ? 0 : rhs.coefficients[index])).ToArray());
-        }
-        private double[] PositiveToNegative(double[] array)
-        {
-            double[] resultArray = new double[array.Length];
+            double[] array = new double[polynom.Power+1];
             for (int i = 0; i < array.Length; i++)
-                resultArray[i] = array[i] * -1;
-            return resultArray;
+                array[i] = polynom[i] * -1;
+            return new Polynom(array);
         }
-        private double[] Allocate(int length)
+        private static double[] Allocate(int length)
         {
             double[] array = new double[length];
             for (int i = 0; i < length; i++)
